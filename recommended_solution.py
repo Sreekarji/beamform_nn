@@ -2,19 +2,24 @@
 recommended_solution.py — self-contained MVDR beamforming NN with null-depth
 preservation (PyTorch).  Drop-in replacement for the user's Phase-3 pipeline.
 
-Why this works (details + ablation in report.md):
+Why this works (details + ablation in the repository README):
   * MVDR weights live in span{a_s, a_i}; in the basis {u, a_i} with u the
     unit-gain EXACT-null vector, w = g*u + tau*a_i with g = 1 - tau*rho
     (rho = a_s^H a_i).  Then a_s^H w = 1 exactly and |w^H a_i| = |tau|*N
     exactly: the network's 2 real outputs are (the scaled) null coordinate.
-  * Plain MSE on w in these coordinates reaches ~-90 dB median nulls and
-    0.000 dB SINR gap vs MVDR on the standard dataset (baseline: -22.7 dB /
-    15.3 dB).  Optional physics loss + dB-hinge for generalization.
+  * Plain MSE on w in these coordinates reaches -93.6 dB median nulls and
+    0.000 dB SINR gap vs MVDR on the standard dataset (baseline: -26.8 dB /
+    11.999 dB).  Optional physics loss + dB-hinge for generalization.
 """
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / 'data'
 
 # ─── scenario ────────────────────────────────────────────────────────────────
 N = 8
@@ -121,6 +126,8 @@ def train(model, X, W, epochs=200, batch=256, lr=1e-3):
             best = (vl, {k: v.clone() for k, v in model.state_dict().items()})
         if ep % 40 == 0:
             print(f"epoch {ep:3d} | val {vl:.6f}")
+    if best[1] is None:
+        raise RuntimeError("validation loss was never finite; refusing to evaluate an untrained model")
     model.load_state_dict(best[1])
     return model, te
 
@@ -148,4 +155,7 @@ if __name__ == '__main__':
     model, te = train(model, X, W)
     print(f"evaluating on held-out test split ({len(te)} samples)")
     evaluate(model, X[te], W[te])
-    torch.save(model.state_dict(), 'model_nullaligned.pth')
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    checkpoint = DATA_DIR / 'model_nullaligned_recommended.pth'
+    torch.save(model.state_dict(), checkpoint)
+    print(f"saved checkpoint -> {checkpoint}")

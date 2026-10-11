@@ -4,20 +4,24 @@ Train + evaluate all ablation variants. Usage:
 
 Variants isolate one design decision at a time:
   baseline           raw 16-D w, MSE, no constraint          (user's setup)
-  raw16_proj         + hard distortionless projection
+  raw16_norm         + hard distortionless projection
   subspace_mse       + w = alpha*a_s + beta*a_i output basis
   nullaligned_mse    + w = g*u + tau*a_i output basis (tau IS the null)
   subspace_cost      subspace + physics loss log J(w)/J_min
   nullaligned_full   nullaligned + projection + cost + annealed dB-null hinge
 """
 import json, sys, time
+from pathlib import Path
+
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 import physics as ph
-from models import BeamNet, DELTA
+from models import BeamNet
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / 'data'
 
 # ─── config (kept identical to the user's Phase-3 recipe where applicable) ───
 N = 8
@@ -45,11 +49,12 @@ VARIANTS = {
 }
 
 # ─── data ────────────────────────────────────────────────────────────────────
-d = np.load('data/dataset_N8.npz')
+d = np.load(DATA_DIR / 'dataset_N8.npz')
 X_deg = torch.tensor(d['X_deg'], dtype=torch.float32)
 W_star = torch.tensor(d['W'], dtype=torch.complex64)
 JMIN = torch.tensor(d['JMIN'], dtype=torch.float32)
-idx = {k: torch.tensor(d[f'idx_{k}']) for k in ('train', 'val', 'test')}
+idx = {k: torch.tensor(d[f'idx_{k}'], dtype=torch.long)
+       for k in ('train', 'val', 'test')}
 
 def loader(k, shuffle):
     ds = TensorDataset(X_deg[idx[k]], W_star[idx[k]], JMIN[idx[k]])
@@ -89,11 +94,11 @@ A_GRID, TH_GRID = steering_grid()
 @torch.no_grad()
 def evaluate(model, dl):
     model.eval()
-    ang, wps, wts, jms = [], [], [], []
-    for xb, wb, jb in dl:
-        ang.append(xb); wts.append(wb); jms.append(jb)
+    ang, wps, wts = [], [], []
+    for xb, wb, _ in dl:
+        ang.append(xb); wts.append(wb)
         wps.append(model(xb))
-    ang = torch.cat(ang); wps = torch.cat(wps); wts = torch.cat(wts); jms = torch.cat(jms)
+    ang = torch.cat(ang); wps = torch.cat(wps); wts = torch.cat(wts)
 
     ts, ti = ang[:, 0].to(torch.float64), ang[:, 1].to(torch.float64)
     a_s = ph.steering_t(ts, N); a_i = ph.steering_t(ti, N)   # complex128
@@ -160,13 +165,16 @@ def train_variant(name, cfg):
             print(f"  [{name}] epoch {epoch:3d}/{EPOCHS} | train {np.mean(losses):.5f} "
                   f"| val {val_loss:.5f} | {time.time()-t0:.0f}s")
 
+    if best_state is None:
+        raise RuntimeError(f"{name}: validation loss was never finite")
     model.load_state_dict(best_state)
     metrics = evaluate(model, test_dl)
     metrics['best_val_loss'] = best_val
     metrics['train_seconds'] = time.time() - t0
     w_pred = metrics.pop('w_pred')
-    np.savez(f'data/pred_{name}.npz', w_pred=w_pred)
-    torch.save(model.state_dict(), f'data/model_{name}.pth')
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    np.savez(DATA_DIR / f'pred_{name}.npz', w_pred=w_pred)
+    torch.save(model.state_dict(), DATA_DIR / f'model_{name}.pth')
     return metrics
 
 # ─── analytic references ─────────────────────────────────────────────────────
@@ -175,7 +183,7 @@ def analytic_refs():
     out = {}
     dl = test_dl
     ang, wts = [], []
-    for xb, wb, jb in dl:
+    for xb, wb, _ in dl:
         ang.append(xb); wts.append(wb)
     ang = torch.cat(ang); wts = torch.cat(wts)
     ts, ti = ang[:, 0].to(torch.float64), ang[:, 1].to(torch.float64)
@@ -213,6 +221,7 @@ if __name__ == '__main__':
         print(f"\n>>> training {nm}  {VARIANTS[nm]}")
         all_res[nm] = train_variant(nm, VARIANTS[nm])
     summarize(all_res)
-    with open('data/ablation_results.json', 'w') as f:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(DATA_DIR / 'ablation_results.json', 'w') as f:
         json.dump(all_res, f, indent=2)
-    print("\nresults -> data/ablation_results.json")
+    print(f"\nresults -> {DATA_DIR / 'ablation_results.json'}")
