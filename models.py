@@ -28,13 +28,9 @@ import torch
 import torch.nn as nn
 import physics as ph
 
-# The project uses N=8, but keep the scale definition parameterized so that
-# constructing BeamNet(N != 8) does not silently use the wrong INR-dependent
-# tau scale.  TAU_SCALE remains the N=8 convenience constant used by the
-# pre-trained checkpoints.
+# Retain the N=8 scenario scale as a module-level compatibility constant.
 DELTA = ph.SIGMA_N / (ph.SIGMA_N + ph.SIGMA_I * 8)
 BETA_SCALE = 0.05                                    # typical |beta| ~ 0.016
-TAU_SCALE = 0.05 * DELTA                             # tau = TAU_SCALE * net_output
 
 
 def _act(name):

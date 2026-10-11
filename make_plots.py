@@ -23,7 +23,6 @@ PLOTS_DIR = ROOT / 'plots'
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 N = 8
-SNR, INR = 20, 30
 SIG_S, SIG_I, SIG_N = 100.0, 1000.0, 1.0
 with open(DATA_DIR / 'ablation_results.json') as f:
     res = json.load(f)
@@ -35,12 +34,6 @@ def pattern_db(w):
     p = np.abs(np.conj(w) @ A.T) ** 2                    # |w^H a(theta)|^2
     p = np.maximum(p, 1e-16)
     return 10 * np.log10(p / p.max())
-
-def pattern_db_abs(w):
-    """|w^H a|^2 in dB, normalized by |w^H a_s| (reported separately)."""
-    p = np.abs(np.conj(w) @ A.T) ** 2
-    return 10 * np.log10(np.maximum(p, 1e-20))
-
 
 def plot_ecdf(ax, values, **kwargs):
     """Matplotlib-version-independent empirical CDF helper."""
@@ -57,20 +50,16 @@ ts, ti = 30.0, -40.0
 w_star = ph.mvdr_np(ts, ti, N)
 a_s = ph.steering_np(ts, N); a_i = ph.steering_np(ti, N)
 eps_list = np.logspace(-6, -1, 25)
-nulls, sinrs = [], []
+nulls = []
 for eps in eps_list:
-    nd, sr = [], []
+    nd = []
     for _ in range(300):
         d = rng.standard_normal(N) + 1j * rng.standard_normal(N)
         d /= np.linalg.norm(d)
         w = w_star + eps * np.linalg.norm(w_star) * d
         p = abs(w.conj() @ a_i) ** 2 / abs(w.conj() @ a_s) ** 2
         nd.append(10 * np.log10(max(p, 1e-300)))
-        sig = abs(w.conj() @ a_s) ** 2 * SIG_S
-        itf = abs(w.conj() @ a_i) ** 2 * SIG_I
-        noi = SIG_N * np.vdot(w, w).real
-        sr.append(10 * np.log10(sig / (itf + noi)))
-    nulls.append(np.median(nd)); sinrs.append(np.median(sr))
+    nulls.append(np.median(nd))
 
 fig, ax1 = plt.subplots(figsize=(9, 5.5))
 ax1.loglog(eps_list, 10 ** (np.array(nulls) / 10), 'k-', lw=2, label='perturbed MVDR')

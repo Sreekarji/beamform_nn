@@ -51,12 +51,14 @@ The recommended model is a `2 -> 128 -> 256 -> 256 -> 128 -> 2` ReLU MLP. Inputs
 
 ## 3. Key results
 
-The headline comparison requested for the project is:
+The completed run reports the following held-out evaluation results:
 
-| KPI on the held-out evaluation | Direct raw-weight MLP | Null-aligned physics-informed NN |
+| Variant | Median normalized null depth | Median SINR gap to MVDR |
 |---|---:|---:|
-| Median normalized null depth | **−22.7 dB** | **−89.5 dB** |
-| Median SINR gap to MVDR | **15.3 dB** | **0.000 dB** |
+| `baseline` | **−26.8 dB** | **11.999 dB** |
+| `nullaligned_mse` | **−92.9 dB** | **0.000 dB** |
+| `nullaligned_full` | **−96.4 dB** | **0.000 dB** |
+| `recommended_solution` | **−93.6 dB** | **0.000 dB** |
 
 Null depth is reported as
 
@@ -71,11 +73,13 @@ The tracked artifact in this checkout uses the stricter `|theta_s - theta_i| >= 
 | Variant | Median null depth | Median SINR gap |
 |---|---:|---:|
 | MVDR ground truth | −96.2 dB | 0.000 dB |
-| `baseline` | −27.2 dB | 11.574 dB |
+| `baseline` | −26.8 dB | 11.999 dB |
 | `nullaligned_mse` | −92.9 dB | 0.000 dB to three decimals |
 | `nullaligned_full` | −96.4 dB | 0.000 dB to three decimals |
 
-The difference between the headline numbers and the saved-artifact table reflects different experiment snapshots and close-angle filtering; it is recorded explicitly rather than silently presenting them as one run. Re-run the scripts to regenerate metrics on the current machine.
+The table above records the completed ablation run in `data/ablation_results.json`. The standalone `recommended_solution.py` run is recorded separately above because its result is not an entry in that JSON file.
+
+In this run, `raw16_norm` worsened both key metrics relative to `baseline`: its median null was −21.5 dB versus −26.8 dB, and its median SINR gap was 17.556 dB versus 11.999 dB. Hard distortionless projection alone was therefore not an improvement in this experiment.
 
 ## 4. Repository contents
 
@@ -89,8 +93,6 @@ beamform_nn/
 ├── verify_physics.py       # Woodbury/Sherman–Morrison and sensitivity checks
 ├── make_plots.py           # regenerates six analysis figures
 ├── hfss_overlay.py         # imports HFSS exports and makes EM/analytical overlays
-├── AUDIT_REPORT.md         # file-by-file audit, risks, and remediation status
-├── report.md               # extended mathematical analysis and prior ablation study
 ├── requirements.txt        # Python dependencies
 ├── data/                   # tracked dataset, checkpoints, predictions, and metrics
 └── plots/                  # tracked figures; HFSS outputs can go in plots/hfss/
@@ -115,7 +117,7 @@ No GPU, MATLAB, HFSS, SciPy, or external dataset is required for the analytical 
 
 ## 6. Reproducing the analytical results
 
-Run the commands from the repository root (or invoke the scripts by absolute path); the scripts resolve data and output paths relative to the repository rather than the process working directory.
+The completed results are already recorded in the repository artifacts. The following commands are optional reproducibility steps; the scripts resolve data and output paths relative to the repository rather than the process working directory.
 
 ### Fast path
 
@@ -228,9 +230,7 @@ Case 05 is intentionally difficult rather than a claim of ideal conditioning. If
 - Very deep nulls can be below the HFSS adaptive-mesh, interpolation, or report numerical floor. Record the floor and never interpret a clipped −80 dB trace as a measured −120 dB null.
 - The random angle split contains nearby points in train and test. It is appropriate for interpolation, not a strong out-of-distribution generalization claim.
 - Near-coincident source/interferer angles make the null-aligned basis ill-conditioned. The current generator excludes separations below 3°; the HFSS stress case at exactly 3° should be reported separately.
-- The headline metrics and the checked-in artifact metrics are from different experiment snapshots; both are labeled above to keep the result auditable.
-
-The full file-by-file audit, including import/path checks and numerical findings, is in [`AUDIT_REPORT.md`](AUDIT_REPORT.md).
+- The headline metrics and the checked-in artifact metrics above refer to the completed run; the standalone recommended result is listed separately because it is not stored in the ablation JSON.
 
 ## 10. Citations
 
@@ -239,7 +239,6 @@ The full file-by-file audit, including import/path checks and numerical findings
 3. G. H. Golub and C. F. Van Loan, *Matrix Computations*, 4th ed., Johns Hopkins University Press, 2013. The low-rank solve in `physics.py` follows the standard Woodbury matrix identity.
 4. C. Trabelsi et al., “Deep Complex Networks,” ICLR 2018, [arXiv:1705.09792](https://arxiv.org/abs/1705.09792). This project uses real hidden layers with a structured complex synthesis layer rather than a full CVNN.
 5. Ansys, *HFSS Help: Radiation and Far-Field Reports*, [Ansys Electronics Desktop documentation](https://ansyshelp.ansys.com/). The exact report labels and export dialogs can vary by AEDT release.
-6. This repository's extended derivation and ablation discussion: [`report.md`](report.md).
 
 ## Takeaway
 

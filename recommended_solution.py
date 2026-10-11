@@ -2,14 +2,14 @@
 recommended_solution.py — self-contained MVDR beamforming NN with null-depth
 preservation (PyTorch).  Drop-in replacement for the user's Phase-3 pipeline.
 
-Why this works (details + ablation in report.md):
+Why this works (details + ablation in the repository README):
   * MVDR weights live in span{a_s, a_i}; in the basis {u, a_i} with u the
     unit-gain EXACT-null vector, w = g*u + tau*a_i with g = 1 - tau*rho
     (rho = a_s^H a_i).  Then a_s^H w = 1 exactly and |w^H a_i| = |tau|*N
     exactly: the network's 2 real outputs are (the scaled) null coordinate.
-  * Plain MSE on w in these coordinates reaches ~-90 dB median nulls and
-    0.000 dB SINR gap vs MVDR on the standard dataset (baseline: -22.7 dB /
-    15.3 dB).  Optional physics loss + dB-hinge for generalization.
+  * Plain MSE on w in these coordinates reaches -93.6 dB median nulls and
+    0.000 dB SINR gap vs MVDR on the standard dataset (baseline: -26.8 dB /
+    11.999 dB).  Optional physics loss + dB-hinge for generalization.
 """
 from pathlib import Path
 

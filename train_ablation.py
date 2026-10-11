@@ -94,11 +94,11 @@ A_GRID, TH_GRID = steering_grid()
 @torch.no_grad()
 def evaluate(model, dl):
     model.eval()
-    ang, wps, wts, jms = [], [], [], []
-    for xb, wb, jb in dl:
-        ang.append(xb); wts.append(wb); jms.append(jb)
+    ang, wps, wts = [], [], []
+    for xb, wb, _ in dl:
+        ang.append(xb); wts.append(wb)
         wps.append(model(xb))
-    ang = torch.cat(ang); wps = torch.cat(wps); wts = torch.cat(wts); jms = torch.cat(jms)
+    ang = torch.cat(ang); wps = torch.cat(wps); wts = torch.cat(wts)
 
     ts, ti = ang[:, 0].to(torch.float64), ang[:, 1].to(torch.float64)
     a_s = ph.steering_t(ts, N); a_i = ph.steering_t(ti, N)   # complex128
@@ -183,7 +183,7 @@ def analytic_refs():
     out = {}
     dl = test_dl
     ang, wts = [], []
-    for xb, wb, jb in dl:
+    for xb, wb, _ in dl:
         ang.append(xb); wts.append(wb)
     ang = torch.cat(ang); wts = torch.cat(wts)
     ts, ti = ang[:, 0].to(torch.float64), ang[:, 1].to(torch.float64)

@@ -99,7 +99,7 @@ print("=" * 78)
 th_s, th_i = 30.0, -40.0
 
 w_inv = mvdr_inv(th_s, th_i, N)
-w_wb, u = mvdr_woodbury(th_s, th_i, N)
+w_wb, _ = mvdr_woodbury(th_s, th_i, N)
 w_q, mu = mvdr_qinv(th_s, th_i, N)
 
 print(f"  ||w_inv - w_woodbury|| / ||w||  = {np.linalg.norm(w_inv - w_wb)/np.linalg.norm(w_wb):.3e}")
@@ -156,7 +156,6 @@ print("Q4: sensitivity of null depth to relative weight perturbations (float64)"
 print("=" * 78)
 rng = np.random.default_rng(0)
 w_star = w_inv
-ref_gain = abs(w_star.conj() @ a_s) ** 2
 print(f"  {'rel.err':>10} {'null (dB)':>10} {'SINR(dB)':>10} {'pointing?':>10}")
 for eps in [0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 5e-2]:
     nulls, sinrs = [], []
