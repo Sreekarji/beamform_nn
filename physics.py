@@ -116,9 +116,13 @@ class DistortionlessProjection(nn.Module):
     def forward(self, w_raw, a_s):
         c = (a_s.conj() * w_raw).sum(-1, keepdim=True)          # a_s^H w_raw
         mag = c.abs()
-        # when |c| < min_den, use a DETACHED phase-preserving denominator so the
-        # backward pass never divides by |c| -> stable at initialization
-        c_clamped = (c / mag.detach().clamp(min=1e-8) * self.min_den).detach()
+        # When |c| < min_den, use a DETACHED phase-preserving denominator so the
+        # backward pass never divides by |c|.  A zero network output has no
+        # phase; choose phase 1 in that case rather than creating 0/0.
+        tiny = torch.finfo(mag.dtype).tiny
+        phase = c / mag.detach().clamp_min(tiny)
+        phase = torch.where(mag > tiny, phase, torch.ones_like(c))
+        c_clamped = (phase * self.min_den).detach()
         c_safe = torch.where(mag < self.min_den, c_clamped, c)
         w = w_raw / c_safe
         # exact constraint even in the clamped regime (correction ~0 in normal use)

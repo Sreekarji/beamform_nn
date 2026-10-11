@@ -28,7 +28,11 @@ import torch
 import torch.nn as nn
 import physics as ph
 
-DELTA = ph.SIGMA_N / (ph.SIGMA_N + ph.SIGMA_I * 8)   # ~1.25e-4, natural scale of tau
+# The project uses N=8, but keep the scale definition parameterized so that
+# constructing BeamNet(N != 8) does not silently use the wrong INR-dependent
+# tau scale.  TAU_SCALE remains the N=8 convenience constant used by the
+# pre-trained checkpoints.
+DELTA = ph.SIGMA_N / (ph.SIGMA_N + ph.SIGMA_I * 8)
 BETA_SCALE = 0.05                                    # typical |beta| ~ 0.016
 TAU_SCALE = 0.05 * DELTA                             # tau = TAU_SCALE * net_output
 
@@ -39,11 +43,17 @@ def _act(name):
 
 class BeamNet(nn.Module):
     def __init__(self, N=8, mode='raw16', hidden=(128, 256, 256, 128),
-                 act='relu', project=False, feats='ang2', tau_scale=TAU_SCALE):
+                 act='relu', project=False, feats='ang2', tau_scale=None):
         super().__init__()
-        assert mode in ('raw16', 'subspace', 'nullaligned')
+        if mode not in ('raw16', 'subspace', 'nullaligned'):
+            raise ValueError(f"unknown output mode: {mode}")
+        if feats not in ('ang2', 'u5'):
+            raise ValueError(f"unknown feature set: {feats}")
         self.N, self.mode, self.project = N, mode, project
-        self.feats, self.tau_scale = feats, tau_scale
+        self.feats = feats
+        self.tau_scale = (0.05 * ph.SIGMA_N /
+                          (ph.SIGMA_N + ph.SIGMA_I * N)
+                          if tau_scale is None else tau_scale)
 
         in_dim = 2 if feats == 'ang2' else 5
         out_dim = 2 * N if mode == 'raw16' else 2

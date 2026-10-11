@@ -142,9 +142,10 @@ w = g·u + τ·a_i,   g = 1 − τ·ρ        (⇒ a_s^H w = 1 exactly)
 ```
 
 The single complex output `tau` *is* the null amplitude, and the constraint is
-identically satisfied. `|τ|` is naturally scaled by `δ = σn/(σn+σi·N)` so the
-regression target is O(0.01–30) across the dataset — ordinary regression
-accuracy (1e-3) now maps to null floors around −120 dB instead of −24 dB.
+identically satisfied. `|τ|` is naturally scaled by `δ = σn/(σn+σi·N)`; on
+the default filtered grid the dimensionless output can reach roughly 64 at the
+3° boundary, while most samples are much smaller. Ordinary regression accuracy
+in this coordinate still maps to substantially deeper nulls than raw-weight MSE.
 
 Compare the three charts for how the null is represented:
 
@@ -379,7 +380,8 @@ parts physics cannot (§9).
   `np.linalg.inv` at 1e-13, faster, and it exposes `(α,β)`/`τ` for free).
 * **Close-angle pairs (`|θs − θi| < 3°`) are excluded by default**
   (`MIN_SEP_DEG = 3.0` in `gen_dataset.py` / `recommended_solution.py`;
-  removes 478 of 14,520 pairs). They are doubly ill-conditioned: as
+  removes 599 of 14,641 grid pairs, leaving 14,042). They are doubly
+  ill-conditioned: as
   `N² − |ρ|² → 0` the labels blow up — `|τ|/δ` is 7.9 at 1° mid-array and ≈ 30
   at 1° endfire, i.e. required net outputs of 160–600 vs O(0.3) typical — and
   `u` itself loses float32 precision (its denominator is `(N²−|ρ|²)/N = 0.125`
@@ -477,7 +479,7 @@ parts physics cannot (§9).
 
 ---
 
-## 11. Implementation notes (code audit, verified and fixed)
+## 10. Implementation notes (code audit, verified and fixed)
 
 An independent audit of the code found the following; all items were verified
 against the source and fixed in this package:
@@ -486,7 +488,7 @@ against the source and fixed in this package:
 |---|---|---|
 | `physics.steering_t` had `dtype=torch.float32` default, ignoring `theta_deg.dtype` | real (minor) — silent 8.5e-7 phase-precision loss when called with float64, fragile on older torch | `dtype=None` → defaults to `theta_deg.dtype` |
 | `recommended_solution.py` evaluated on the full dataset (incl. train) | real (methodology) — numbers were not inflated (−89.2 full-set vs −89.5 test-set) but reporting was inconsistent | `train()` returns the test split; `evaluate` runs on it only |
-| close-angle pairs ill-conditioned (`\|τ\|/δ` up to ~30, `u` denominator → 0.125) | real | `MIN_SEP_DEG = 3.0` exclusion implemented in both dataset generators (removes 478 pairs) |
+| close-angle pairs ill-conditioned (`\|τ\|/δ` up to ~30, `u` denominator → 0.125) | real | `MIN_SEP_DEG = 3.0` exclusion implemented in both dataset generators (removes 599 of 14,641 grid pairs) |
 | `loss_excess_cost`/`loss_physics` valid only for distortionless `w` (else `log` can go negative) | real — all call sites already enforced the constraint | precondition documented in both docstrings |
 | `gen_dataset.py` verified only the `(α,β)` reconstruction | real | both decompositions now checked (`err_ab`, `err_gt` ≈ 1.6e-14) |
 | `OUT_SCALE` factored differently across files | real (clarity) | unified `TAU_SCALE = 0.05·DELTA`, `BETA_SCALE = 0.05` |
@@ -500,7 +502,7 @@ starts at ≈ −106 dB null (τ_init ≈ 0.1·TAU_SCALE) — *already deeper th
 MVDR target*. Training is not "learning to null"; it is learning to place τ at
 MVDR's finite, INR-dependent value.
 
-## 10. Files
+## 11. Files
 
 ```
 beamform_nn/
