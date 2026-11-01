@@ -5,7 +5,3 @@ __pycache__/
 # Generated single-run checkpoints and HFSS overlay output
 model_nullaligned.pth
 data/model_nullaligned_recommended.pth
-plots/hfss/
-
-# Local HFSS exports can be large and should be added intentionally when needed
-hfss_exports/
