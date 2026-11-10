@@ -1,4 +1,4 @@
-# Physics-Informed Neural Network for MVDR Beamforming with Null Preservation on a Uniform Linear Array
+# Design and Simulation of Null-Preserving MVDR Beamforming Using a Physics-Informed Neural Network
 
 **A physics-informed neural network (PINN) that learns Minimum Variance Distortionless Response (MVDR) beamforming weights on an 8-element 2.4 GHz uniform linear array while preserving deep interference nulls — verified analytically across 14,042 geometries and validated against full-wave Ansys HFSS electromagnetic simulation.**
 
